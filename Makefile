@@ -20,7 +20,8 @@ all: link nvim
 link: $(DOTFILES_LIST)
 
 $(DOTFILES_LIST):
-	@ln -sfv $(DOTFILES)/$@ $(dir $(TARGET_DIR)/$@)
+	mkdir -p $(dir $(TARGET_DIR)/$@)
+	ln -sfv $(DOTFILES)/$@ $(dir $(TARGET_DIR)/$@)
 
 update-nvim:
 	@git submodule update --init --recursive
