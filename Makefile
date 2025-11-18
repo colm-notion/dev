@@ -45,9 +45,9 @@ NEOVIM_SOURCE=~/neovim
 $(NEOVIM_SOURCE):
 	@git clone https://github.com/neovim/neovim.git $(NEOVIM_SOURCE)
 
-nvim: $(PACKER) build-neovim-src
+nvim: $(PACKER) build-neovim-src neovim-packer-installs
 
-BREW_PACKAGES := ninja cmake gettext curl git
+BREW_PACKAGES := ninja cmake gettext curl git tmux ripgrep lua
 
 .PHONY: install
 install: $(BREW_PACKAGES) $(YAY_PACKAGES)
@@ -64,4 +64,11 @@ build-neovim-src: $(NEOVIM_SOURCE) $(BREW_PACKAGES)
 	git checkout v0.11.4 && \
 	make CMAKE_BUILD_TYPE=RelWithDebInfo && \
 	sudo make install;
+
+neovim-packer-installs:
+	@nvim --headless -c 'autocmd User PackerComplete quitall' -c 'PackerClean'
+	@nvim --headless -c 'autocmd User PackerComplete quitall' -c 'PackerSync'
+	@nvim --headless -c 'sleep 10' -c 'qall'
+	@nvim --headless -c 'autocmd User PackerComplete quitall' -c 'PackerSync'
+	@nvim --headless -c 'MasonUpdate' -c 'MasonInstall --force basedpyright terraform systemd-language-server typescript-language-server' -c 'quitall' || true
 

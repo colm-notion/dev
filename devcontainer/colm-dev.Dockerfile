@@ -56,8 +56,4 @@ RUN sudo chmod -R 755 /home/vscode/.config
 RUN find /home/vscode/dev/env -type f -name 'packer_compiled.lua' -delete
 
 # install plugins and quit when done
-RUN nvim --headless -c 'autocmd User PackerComplete quitall' -c 'PackerClean'
-RUN nvim --headless -c 'autocmd User PackerComplete quitall' -c 'PackerSync'
-RUN nvim --headless -c 'sleep 10' -c 'qall'
-RUN nvim --headless -c 'autocmd User PackerComplete quitall' -c 'PackerSync'
-RUN nvim --headless -c 'MasonUpdate' -c 'MasonInstall --force basedpyright terraform systemd-language-server gopls rust-analyzer typescript-language-server' -c 'quitall' || true
+RUN make -C /home/vscode/dev neovim-packer-installs
