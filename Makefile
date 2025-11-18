@@ -15,7 +15,7 @@ DOTFILES_LIST = \
 	.config/rofi \
 	.fonts
 
-all: link nvim
+all: link nvim update-nvim
 
 link: $(DOTFILES_LIST)
 
@@ -47,7 +47,19 @@ $(NEOVIM_SOURCE):
 
 nvim: $(PACKER) build-neovim-src
 
-build-neovim-src: $(NEOVIM_SOURCE) $(PACMAN_PACKAGES)
+BREW_PACKAGES := ninja cmake gettext curl git
+
+.PHONY: install
+install: $(BREW_PACKAGES) $(YAY_PACKAGES)
+
+$(BREW_PACKAGES) &:
+	@echo "Ensuring $@ is installed..."
+	@brew list $@ > /dev/null 2>&1 || { \
+		echo "Installing $@..."; \
+		brew install $@; \
+	}
+
+build-neovim-src: $(NEOVIM_SOURCE) $(BREW_PACKAGES)
 	@cd ~/neovim && \
 	git checkout v0.11.4 && \
 	make CMAKE_BUILD_TYPE=RelWithDebInfo && \
