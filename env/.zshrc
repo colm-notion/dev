@@ -110,3 +110,7 @@ fpath=(/Users/clang/.docker/completions $fpath)
 autoload -Uz compinit
 compinit
 # End of Docker CLI completions
+eval "$(rbenv init -)"
+eval "$(direnv hook zsh)"
+export RIPGREP_CONFIG_PATH="/Users/clang/notion-next/.ripgreprc"
+eval "$('/usr/local/bin/node' -r '/Users/clang/notion-next/esbuild-runner.js' '/Users/clang/notion-next/src/cli/main/notion.ts' completion --install)"

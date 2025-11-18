@@ -25,16 +25,18 @@ gpp() {
 alias gpa="ga . && gcm .; gpp"
 alias gmap="ga . && gcm .; gfmom && gpp"
 
-alias gwap='git reflog show --pretty=format:"%gs ~ %gd" --date=relative | grep checkout | grep -oE "[^ ]+ ~ .*" | awk -F~ "!seen[\$1]++" | head -n 1'
+gwa() {
+  if [ -z "$1" ]; then
+    echo "Usage: gwa <branch-name>"
+    return 1
+  fi
 
-__git_complete g __git_main
-__git_complete gco _git_checkout
-__git_complete gcb _git_checkout
+  local branch="$1"
+  local worktree_path="$HOME/worktrees/$branch"
 
-alias mg="make generate"
-alias ml="make lint"
-
-git config --global --add safe.directory /workspaces/persona
+  git branch "$branch" || true
+  git worktree add "$worktree_path" "$branch" && cd "$worktree_path"
+}
 
 alias e="exa --group-directories-first --icons"
 alias el="exa -T -L 2 --icons --group-directories-first"
