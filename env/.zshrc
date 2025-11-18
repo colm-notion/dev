@@ -104,3 +104,9 @@ source $ZSH/oh-my-zsh.sh
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 
 source ~/.zsh_profile
+eval "$(pyenv init -)"
+# The following lines have been added by Docker Desktop to enable Docker CLI completions.
+fpath=(/Users/clang/.docker/completions $fpath)
+autoload -Uz compinit
+compinit
+# End of Docker CLI completions
