@@ -1,18 +1,12 @@
 # dev
 This is a repository for development tools and scripts. Ideally, I would like to be up and running on any
-machine in a matter of minutes. There is some motivation to prioritize modular steps so that depending on the
-machine, I can run only the necessary steps (e.g. If I just want to get tmux + nvim setup).
+machine in a matter of minutes.
 
 ### Setup
-1. run setup.sh to install any necessary dependencies.
-1. clone this repo in and run whatever scripts you need.
-1. base will install everything to get you going.
+1. run `make`
+1. run `make ensure-oh-my-zsh` if desired
 
-
-### Todo
-Add:
-- [x] neovim setup script
-- [x] tmux setup script
-- [x] fish setup script
-
-
+### Some notes
+1. I have a seperate repo for my neovim config which is references as a submodule here.
+1. All of the dotfiles on the target installation machine are simply symlinks to the files in this repo. 
+Change a setting in this repo? It will update on your system.

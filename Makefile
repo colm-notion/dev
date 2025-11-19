@@ -15,7 +15,7 @@ DOTFILES_LIST = \
 	.config/rofi \
 	.fonts
 
-all: link nvim update-nvim
+all: link nvim
 
 link: $(DOTFILES_LIST)
 
@@ -45,19 +45,22 @@ NEOVIM_SOURCE=~/neovim
 $(NEOVIM_SOURCE):
 	@git clone https://github.com/neovim/neovim.git $(NEOVIM_SOURCE)
 
-nvim: $(PACKER) build-neovim-src neovim-packer-installs
+nvim: $(PACKER) build-neovim-src neovim-packer-installs update-nvim
 
-BREW_PACKAGES := ninja cmake gettext curl git tmux ripgrep lua
+BREW_PACKAGES := ninja cmake gettext curl git tmux ripgrep lua rustup btop
 
 .PHONY: install
-install: $(BREW_PACKAGES) $(YAY_PACKAGES)
+install: $(BREW_PACKAGES) install-rust
 
-$(BREW_PACKAGES) &:
+$(BREW_PACKAGES):
 	@echo "Ensuring $@ is installed..."
 	@brew list $@ > /dev/null 2>&1 || { \
 		echo "Installing $@..."; \
 		brew install $@; \
 	}
+
+install-rust: $(BREW_PACKAGES)
+	@rustup-init
 
 build-neovim-src: $(NEOVIM_SOURCE) $(BREW_PACKAGES)
 	@cd ~/neovim && \
