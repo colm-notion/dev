@@ -5,7 +5,6 @@ TARGET_DIR = $$HOME
 DOTFILES_LIST = \
 	.zshrc \
 	.zsh_profile \
-	.gitignore_global \
 	.tmux.conf \
 	.config/tmux \
 	.config/nvim \
@@ -63,9 +62,6 @@ $(BREW_PACKAGES):
 install-rust: $(BREW_PACKAGES)
 	@rustup-init
 	@rustup toolchain install nightly
-
-git-ignore-config: ~/.gitignore_global
-	@git config --global core.excludesfile ~/.gitignore_global
 
 build-neovim-src: $(NEOVIM_SOURCE) $(BREW_PACKAGES)
 	@cd ~/neovim && \
