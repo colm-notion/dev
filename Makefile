@@ -5,6 +5,7 @@ TARGET_DIR = $$HOME
 DOTFILES_LIST = \
 	.zshrc \
 	.zsh_profile \
+	.gitignore_global \
 	.tmux.conf \
 	.config/tmux \
 	.config/nvim \
@@ -45,7 +46,7 @@ NEOVIM_SOURCE=~/neovim
 $(NEOVIM_SOURCE):
 	@git clone https://github.com/neovim/neovim.git $(NEOVIM_SOURCE)
 
-nvim: $(PACKER) build-neovim-src neovim-packer-installs update-nvim
+nvim: $(PACKER) build-neovim-src neovim-packer-installs update-nvim git-ignore-config
 
 BREW_PACKAGES := ninja cmake gettext curl git tmux ripgrep lua rustup btop
 
@@ -61,6 +62,9 @@ $(BREW_PACKAGES):
 
 install-rust: $(BREW_PACKAGES)
 	@rustup-init
+
+git-ignore-config: ~/.gitignore_global
+	@git config --global core.excludesfile ~/.gitignore_global
 
 build-neovim-src: $(NEOVIM_SOURCE) $(BREW_PACKAGES)
 	@cd ~/neovim && \
