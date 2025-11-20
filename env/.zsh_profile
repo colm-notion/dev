@@ -12,7 +12,7 @@ alias gp="git pull"
 alias gf="git fetch"
 alias gfmom="git fetch; git merge origin/main"
 alias gom="git checkout main"
-alias glb='git reflog show --pretty=format:"%gs ~ %gd" --date=relative | grep checkout | grep -oE "[^ ]+ ~ .*" | awk -F~ "!seen[\$1]++" | tac | awk -F" ~ HEAD@{" "{printf(\"%s: %s\n\", substr(\$3, 1, length(\$2)-1), \$1)}"'
+alias glb='git reflog show --pretty=format:"%gs ~ %gd" --date=relative | grep checkout | grep -oE "[^ ]+ ~ .*" | awk -F~ "!seen[\$1]++" | tail -r | awk -F" ~ HEAD@{" "{printf(\"%s: %s\n\", \$1, substr(\$2, 1, length(\$2)-1))}"'
 gpp() {
     # Get the name of the currently checked out branch
     current_branch=$(git symbolic-ref --short HEAD)
@@ -40,4 +40,3 @@ alias e="exa --group-directories-first --icons"
 alias el="exa -T -L 2 --icons --group-directories-first"
 
 export PATH=$PATH:~/.cargo/bin
-alias ops="/workspaces/persona/libs/ops/ops"
