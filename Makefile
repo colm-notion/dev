@@ -62,6 +62,7 @@ $(BREW_PACKAGES):
 
 install-rust: $(BREW_PACKAGES)
 	@rustup-init
+	@rustup toolchain install nightly
 
 git-ignore-config: ~/.gitignore_global
 	@git config --global core.excludesfile ~/.gitignore_global
