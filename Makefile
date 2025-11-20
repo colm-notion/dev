@@ -48,7 +48,7 @@ $(NEOVIM_SOURCE):
 
 nvim: $(PACKER) build-neovim-src neovim-packer-installs update-nvim git-ignore-config
 
-BREW_PACKAGES := ninja cmake gettext curl git tmux ripgrep lua rustup btop
+BREW_PACKAGES := ninja cmake gettext curl git tmux ripgrep lua rustup btop eza
 
 .PHONY: install
 install: $(BREW_PACKAGES) install-rust

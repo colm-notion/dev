@@ -36,7 +36,7 @@ gwa() {
   git worktree add "$worktree_path" "$branch" && cd "$worktree_path"
 }
 
-alias e="exa --group-directories-first --icons"
-alias el="exa -T -L 2 --icons --group-directories-first"
+alias e="eza --group-directories-first --icons"
+alias el="eza -T -L 2 --icons --group-directories-first"
 
 export PATH=$PATH:~/.cargo/bin
