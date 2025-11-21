@@ -20,8 +20,8 @@ gpp() {
     # Push the current branch to origin
     git push origin "$current_branch"
 }
-alias gpa="ga . && gcm .; gpp"
-alias gmap="ga . && gcm .; gfmom && gpp"
+alias gpa="gaa && gcm .; gpp"
+alias gmap="gaa && gcm .; gfmom && gpp"
 
 gwa() {
   if [ -z "$1" ]; then
