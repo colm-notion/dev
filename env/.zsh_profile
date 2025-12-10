@@ -39,12 +39,22 @@ gwa() {
   git branch "$branch" || true
   git worktree add "$worktree_path" "$branch"
 
-  # Send commands to the new tmux session
-  tmux send-keys -t "$branch" "cd $worktree_path" C-m
-  tmux send-keys -t "$branch" "notion install" C-m
+  # Send commands to the first window of the new tmux session
+  tmux send-keys -t "$branch:0" "cd $worktree_path" C-m
+  tmux send-keys -t "$branch:0" "notion install" C-m
 
-  # Change the root directory of the tmux session so new windows open here
-  tmux set-option -t "$branch" default-path "$worktree_path"
+  # Create second window
+  tmux new-window -t "$branch:1" -c "$worktree_path"
+
+  # Create third window and run claude
+  tmux new-window -t "$branch:2" -c "$worktree_path"
+  tmux send-keys -t "$branch:2" "claude" C-m
+
+  # Set default directory for new windows in this session
+  tmux set-option -t "$branch" default-command "cd $worktree_path; exec \$SHELL"
+
+  # Switch back to the first window
+  tmux select-window -t "$branch:0"
 
   # Switch to the new session
   if [ -n "$TMUX" ]; then
