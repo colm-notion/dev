@@ -32,15 +32,28 @@ gwa() {
   local branch="$1"
   local worktree_path="$HOME/worktrees/$branch"
 
+  # Create a new tmux session with the branch name (detached)
+  tmux new-session -d -s "$branch" 2>/dev/null || true
+
+  # Add worktree
   git branch "$branch" || true
   git worktree add "$worktree_path" "$branch"
 
-  if [ -d "node_modules" ]; then
-    echo "Syncing node_modules to $worktree_path..."
-    rsync -a node_modules/ "$worktree_path/node_modules/"
-  fi
+  # Send commands to the new tmux session
+  tmux send-keys -t "$branch" "cd $worktree_path" C-m
+  tmux send-keys -t "$branch" "notion install" C-m
 
-  cd "$worktree_path" && notion install
+  # Change the root directory of the tmux session so new windows open here
+  tmux set-option -t "$branch" default-path "$worktree_path"
+
+  # Switch to the new session
+  if [ -n "$TMUX" ]; then
+    # We're inside tmux, so use switch-client
+    tmux switch-client -t "$branch"
+  else
+    # We're not in tmux, so attach
+    tmux attach-session -t "$branch"
+  fi
 }
 
 alias e="eza --group-directories-first --icons"
