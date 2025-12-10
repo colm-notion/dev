@@ -33,7 +33,14 @@ gwa() {
   local worktree_path="$HOME/worktrees/$branch"
 
   git branch "$branch" || true
-  git worktree add "$worktree_path" "$branch" && cd "$worktree_path"
+  git worktree add "$worktree_path" "$branch"
+
+  if [ -d "node_modules" ]; then
+    echo "Syncing node_modules to $worktree_path..."
+    rsync -a node_modules/ "$worktree_path/node_modules/"
+  fi
+
+  cd "$worktree_path" && notion install
 }
 
 alias e="eza --group-directories-first --icons"
