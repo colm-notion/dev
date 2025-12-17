@@ -23,6 +23,55 @@ gpp() {
 alias gpa="gaa && gcm .; gpp"
 alias gmap="gaa && gcm .; gfmom && gpp"
 
+gwsetup() {
+  for i in {1..4}; do
+    local ws="ws-$i"
+    local tmux_session_name="($ws): "
+    local worktree_path="$HOME/worktrees/$ws"
+
+    rm -rfv "$worktree_path" || true
+    
+    echo "setting up $ws in $worktree_path"
+    git worktree add --detach "$worktree_path"
+    tmux new-session -d -s "$tmux_session_name" -c "$worktree_path" 2>/dev/null || true
+  done
+}
+
+gws() {
+  if [ -z "$1" ]; then
+    echo "Usage: gwa <branch-name>"
+    return 1
+  fi
+
+  local branch="$1"
+  # If branch starts with colm-lang--, use as is. Otherwise, prepend colm-lang--
+  if [[ "$branch" == colm-lang--* ]]; then
+    full_branch="$branch"
+  else
+    full_branch="colm-lang--$branch"
+  fi
+
+  gt co main
+  gt co "$full_branch" || { echo "$full_branch does not exist, creating..."; gt create "$full_branch" || return 1; }
+  [ ! -d "node_modules" ] && notion install
+
+  # Rename tmux session if inside one
+  if [ -n "$TMUX" ]; then
+    local current_dir="$PWD"
+    local new_session_name=""
+
+    # Check if we're in a workspace directory (~/worktrees/ws-N)
+    if [[ "$current_dir" =~ $HOME/worktrees/(ws-[0-9]+) ]]; then
+      local workspace="${match[1]}"
+      new_session_name="($workspace) $branch"
+    else
+      new_session_name="$branch"
+    fi
+
+    tmux rename-session "$new_session_name"
+  fi
+}
+
 gwa() {
   if [ -z "$1" ]; then
     echo "Usage: gwa <branch-name>"
@@ -50,8 +99,8 @@ gwa() {
   tmux new-window -t "$branch:2" -c "$worktree_path"
   tmux send-keys -t "$branch:2" "claude" C-m
 
-  # Set default directory for new windows in this session
-  tmux set-option -t "$branch" default-command "cd $worktree_path; exec \$SHELL"
+  # Change the root directory of the tmux session so new windows open here
+  tmux set-option -t "$branch" default-path "$worktree_path"
 
   # Switch back to the first window
   tmux select-window -t "$branch:0"

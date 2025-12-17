@@ -50,7 +50,10 @@ nvim: $(PACKER) build-neovim-src neovim-packer-installs update-nvim git-ignore-c
 BREW_PACKAGES := ninja cmake gettext curl git tmux ripgrep lua rustup btop eza withgraphite/tap/graphite gh
 
 .PHONY: install
-install: $(BREW_PACKAGES) install-rust
+install: install-rust install-brew
+
+.PHONY: install-brew
+install-brew: $(BREW_PACKAGES)
 
 $(BREW_PACKAGES):
 	@echo "Ensuring $@ is installed..."
