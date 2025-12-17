@@ -52,7 +52,7 @@ gws() {
   fi
 
   gt co main
-  gt co "$full_branch" || { echo "$full_branch does not exist, creating..."; gt create "$full_branch" || return 1; }
+  gt co --no-interactive "$full_branch" || { echo "$full_branch does not exist, creating..."; gt create "$full_branch" || return 1; }
 
   # Rename tmux session if inside one
   if [ -n "$TMUX" ]; then
