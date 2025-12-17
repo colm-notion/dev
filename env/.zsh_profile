@@ -53,7 +53,6 @@ gws() {
 
   gt co main
   gt co "$full_branch" || { echo "$full_branch does not exist, creating..."; gt create "$full_branch" || return 1; }
-  [ ! -d "node_modules" ] && notion install
 
   # Rename tmux session if inside one
   if [ -n "$TMUX" ]; then
@@ -70,6 +69,8 @@ gws() {
 
     tmux rename-session "$new_session_name"
   fi
+
+  [ ! -d "node_modules" ] && notion install
 }
 
 gwa() {
