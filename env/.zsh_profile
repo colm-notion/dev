@@ -30,17 +30,31 @@ gwsetup() {
     local tmux_session_name="($ws): "
     local worktree_path="$HOME/worktrees/$ws"
 
-    rm -rfv "$worktree_path" || true
-    
     echo "setting up $ws in $worktree_path"
     git worktree add --detach "$worktree_path"
+  done
+}
+
+tmuxsetup() {
+  for i in {1..4}; do
+    local ws="ws-$i"
+    local tmux_session_name="($ws) $ws"
+    local worktree_path="$HOME/worktrees/$ws"
     tmux new-session -d -s "$tmux_session_name" -c "$worktree_path" 2>/dev/null || true
+
+    # Create second window
+    tmux new-window -t "$tmux_session_name:1" -c "$worktree_path"
+    tmux send-keys -t "$tmux_session_name:1" "nvim" C-m
+
+    # Create third window and run claude
+    tmux new-window -t "$tmux_session_name:2" -c "$worktree_path"
+    tmux send-keys -t "$tmux_session_name:2" "claude" C-m
   done
 }
 
 gws() {
   if [ -z "$1" ]; then
-    echo "Usage: gwa <branch-name>"
+    echo "Usage: gws <branch-name>"
     return 1
   fi
 
