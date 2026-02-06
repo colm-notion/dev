@@ -21,22 +21,21 @@ gpp() {
     # Push the current branch to origin
     git push origin "$current_branch"
 }
-alias gpa="gaa && gcm .; gpp"
+alias gpa="gaa && gcm .; gt submit"
 alias gmap="gaa && gcm .; gfmom && gpp"
 
 gwsetup() {
-  for i in {1..4}; do
+  for i in {1..5}; do
     local ws="ws-$i"
-    local tmux_session_name="($ws): "
     local worktree_path="$HOME/worktrees/$ws"
 
     echo "setting up $ws in $worktree_path"
-    git worktree add --detach "$worktree_path"
+    git worktree add --detach --force "$worktree_path"
   done
 }
 
 tmuxsetup() {
-  for i in {1..4}; do
+  for i in {1..5}; do
     local ws="ws-$i"
     local tmux_session_name="($ws) $ws"
     local worktree_path="$HOME/worktrees/$ws"
@@ -50,6 +49,20 @@ tmuxsetup() {
     tmux new-window -t "$tmux_session_name:2" -c "$worktree_path"
     tmux send-keys -t "$tmux_session_name:2" "claude" C-m
   done
+
+  # Setup for ~/dev
+  tmux new-session -d -s "dev" -c "$HOME/dev" 2>/dev/null || true
+  tmux new-window -t "dev:1" -c "$HOME/dev"
+  tmux send-keys -t "dev:1" "nvim" C-m
+  tmux new-window -t "dev:2" -c "$HOME/dev"
+  tmux send-keys -t "dev:2" "claude" C-m
+
+  # Setup for ~/init_lua
+  tmux new-session -d -s "init_lua" -c "$HOME/init.lua" 2>/dev/null || true
+  tmux new-window -t "init_lua:1" -c "$HOME/init.lua"
+  tmux send-keys -t "init_lua:1" "nvim" C-m
+  tmux new-window -t "init_lua:2" -c "$HOME/init.lua"
+  tmux send-keys -t "init_lua:2" "claude" C-m
 }
 
 gws() {
@@ -86,6 +99,18 @@ gws() {
   fi
 
   [ ! -d "node_modules" ] && notion install
+}
+
+gwreset() {
+  local current_dir="$PWD"
+
+  if [[ "$current_dir" =~ $HOME/worktrees/(ws-[0-9]+) ]]; then
+    local workspace="${match[1]}"
+    gws "$workspace"
+  else
+    echo "Not in a workspace directory (expected ~/worktrees/ws-N)"
+    return 1
+  fi
 }
 
 gwa() {
