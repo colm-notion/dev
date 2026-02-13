@@ -29,6 +29,11 @@ gwsetup() {
     local ws="ws-$i"
     local worktree_path="$HOME/worktrees/$ws"
 
+    if [[ -d "$worktree_path" ]]; then
+      echo "$ws already exists, skipping"
+      continue
+    fi
+
     echo "setting up $ws in $worktree_path"
     git worktree add --detach --force "$worktree_path"
   done
