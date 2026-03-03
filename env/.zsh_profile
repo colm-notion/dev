@@ -25,7 +25,7 @@ alias gpa="gaa && gcm .; gt submit"
 alias gmap="gaa && gcm .; gfmom && gpp"
 
 gwsetup() {
-  for i in {1..5}; do
+  for i in {1..6}; do
     local ws="ws-$i"
     local worktree_path="$HOME/worktrees/$ws"
 
@@ -36,14 +36,20 @@ gwsetup() {
 
     echo "setting up $ws in $worktree_path"
     git worktree add --detach --force "$worktree_path"
+    cd gws
   done
 }
 
 tmuxsetup() {
-  for i in {1..5}; do
+  for i in {1..6}; do
     local ws="ws-$i"
     local tmux_session_name="($ws) $ws"
     local worktree_path="$HOME/worktrees/$ws"
+    if tmux list-sessions -F '#{session_name}' 2>/dev/null | grep -q "^($ws) "; then
+      echo "$ws tmux session already exists, skipping"
+      continue
+    fi
+
     tmux new-session -d -s "$tmux_session_name" -c "$worktree_path" 2>/dev/null || true
 
     # Create second window
@@ -53,6 +59,10 @@ tmuxsetup() {
     # Create third window and run claude
     tmux new-window -t "$tmux_session_name:2" -c "$worktree_path"
     tmux send-keys -t "$tmux_session_name:2" "claude" C-m
+
+    sleep $i
+    tmux send-keys -t "$tmux_session_name:0" 'gws $(git branch --show-current)' C-m
+    tmux send-keys -t "$tmux_session_name:0" "notion install" C-m
   done
 
   # Setup for ~/dev
