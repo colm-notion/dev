@@ -3,6 +3,7 @@ DOTFILES := "$(dir $(MKFILE_PATH))env"
 TARGET_DIR = $$HOME
 
 DOTFILES_LIST = \
+	.boxy/profile/init.sh \
 	.zshrc \
 	.zsh_profile \
 	.tmux.conf \
@@ -47,7 +48,7 @@ $(NEOVIM_SOURCE):
 
 nvim: $(PACKER) build-neovim-src neovim-packer-installs update-nvim git-ignore-config
 
-BREW_PACKAGES := ninja cmake gettext curl git tmux ripgrep lua rustup btop eza withgraphite/tap/graphite gh
+BREW_PACKAGES := ninja cmake gettext curl git tmux ripgrep lua rustup btop eza withgraphite/tap/graphite gh terminal-notifier
 
 .PHONY: install
 install: install-rust install-brew
@@ -71,6 +72,19 @@ build-neovim-src: $(NEOVIM_SOURCE) $(BREW_PACKAGES)
 	git checkout v0.11.4 && \
 	make CMAKE_BUILD_TYPE=RelWithDebInfo && \
 	sudo make install;
+
+.PHONY: claude-hooks
+claude-hooks:
+	@mkdir -p $(TARGET_DIR)/.claude/scripts
+	@cp $(DOTFILES)/.claude/scripts/notify-waiting.sh $(TARGET_DIR)/.claude/scripts/notify-waiting.sh
+	@chmod +x $(TARGET_DIR)/.claude/scripts/notify-waiting.sh
+	@if [ ! -f $(TARGET_DIR)/.claude/settings.json ]; then \
+		echo '{}' > $(TARGET_DIR)/.claude/settings.json; \
+	fi
+	@jq '.hooks.Notification = [{"hooks": [{"type": "command", "command": "$(TARGET_DIR)/.claude/scripts/notify-waiting.sh"}]}]' \
+		$(TARGET_DIR)/.claude/settings.json > $(TARGET_DIR)/.claude/settings.json.tmp \
+		&& mv $(TARGET_DIR)/.claude/settings.json.tmp $(TARGET_DIR)/.claude/settings.json
+	@echo "Claude hooks installed."
 
 neovim-packer-installs:
 	@nvim --headless -c 'autocmd User PackerComplete quitall' -c 'PackerClean'

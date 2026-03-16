@@ -81,14 +81,23 @@ tmuxsetup() {
 }
 
 gws() {
-  if [ -z "$1" ]; then
-    echo "Usage: gws <branch-name>"
+  local raw=false
+  local branch=""
+  for arg in "$@"; do
+    if [[ "$arg" == "--raw" || "$arg" == "-r" ]]; then
+      raw=true
+    else
+      branch="$arg"
+    fi
+  done
+
+  if [ -z "$branch" ]; then
+    echo "Usage: gws [-r|--raw] <branch-name>"
     return 1
   fi
-
-  local branch="$1"
-  # If branch starts with colm-lang--, use as is. Otherwise, prepend colm-lang--
-  if [[ "$branch" == colm-lang--* ]]; then
+  if $raw; then
+    full_branch="$branch"
+  elif [[ "$branch" == colm-lang--* ]]; then
     full_branch="$branch"
   else
     full_branch="colm-lang--$branch"
@@ -128,6 +137,8 @@ gwreset() {
     return 1
   fi
 }
+
+alias gwr="gwreset"
 
 gwa() {
   if [ -z "$1" ]; then
