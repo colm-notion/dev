@@ -140,6 +140,23 @@ gwreset() {
 
 alias gwr="gwreset"
 
+gwms() {
+  if [ -z "$TMUX" ]; then
+    echo "Not inside a tmux session"
+    return 1
+  fi
+
+  local current_dir="$PWD"
+
+  if [[ "$current_dir" =~ $HOME/worktrees/(ws-[0-9]+) ]]; then
+    local workspace="${match[1]}"
+    tmux rename-session "($workspace) stale"
+  else
+    echo "Not in a workspace directory (expected ~/worktrees/ws-N)"
+    return 1
+  fi
+}
+
 gwa() {
   if [ -z "$1" ]; then
     echo "Usage: gwa <branch-name>"

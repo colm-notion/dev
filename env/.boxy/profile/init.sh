@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
-git clone git@github.com:colm-notion/dev.git ~/dev
+set -euo pipefail
+
+git clone https://github.com/colm-notion/dev.git ~/dev
 cd ~/dev
 make
