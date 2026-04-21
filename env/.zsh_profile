@@ -149,6 +149,7 @@ gwms() {
   local current_dir="$PWD"
 
   if [[ "$current_dir" =~ $HOME/worktrees/(ws-[0-9]+) ]]; then
+    gwreset
     local workspace="${match[1]}"
     tmux rename-session "($workspace) stale"
   else
@@ -156,6 +157,8 @@ gwms() {
     return 1
   fi
 }
+
+alias ms="gwms"
 
 gwa() {
   if [ -z "$1" ]; then
