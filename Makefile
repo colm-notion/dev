@@ -79,8 +79,13 @@ APT_PACKAGES := ninja-build gettext cmake curl build-essential git tmux ripgrep 
 
 .PHONY: install-apt
 install-apt:
-	@sudo apt-get update
-	@sudo apt-get install -y $(APT_PACKAGES)
+	@missing=$$(for p in $(APT_PACKAGES); do dpkg -s $$p >/dev/null 2>&1 || echo $$p; done); \
+	if [ -n "$$missing" ]; then \
+		echo "Installing missing apt packages: $$missing"; \
+		sudo apt-get update && sudo apt-get install -y $$missing; \
+	else \
+		echo "all apt packages already installed"; \
+	fi
 
 NVIM_VERSION := v0.11.4
 build-neovim-src-linux: install-apt
