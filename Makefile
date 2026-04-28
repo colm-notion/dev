@@ -18,6 +18,8 @@ DOTFILES_LIST = \
 
 all: link nvim
 
+boxy: link nvim-linux
+
 link: $(DOTFILES_LIST)
 
 $(DOTFILES_LIST):
@@ -72,6 +74,21 @@ build-neovim-src: $(NEOVIM_SOURCE) $(BREW_PACKAGES)
 	git checkout v0.11.4 && \
 	make CMAKE_BUILD_TYPE=RelWithDebInfo && \
 	sudo make install;
+
+APT_PACKAGES := ninja-build gettext cmake curl build-essential git tmux ripgrep lua5.4 gh
+
+.PHONY: install-apt
+install-apt:
+	@sudo apt-get update
+	@sudo apt-get install -y $(APT_PACKAGES)
+
+build-neovim-src-linux: $(NEOVIM_SOURCE) install-apt
+	@cd ~/neovim && \
+	git checkout v0.11.4 && \
+	make CMAKE_BUILD_TYPE=RelWithDebInfo && \
+	sudo make install;
+
+nvim-linux: $(PACKER) build-neovim-src-linux neovim-packer-installs update-nvim git-ignore-config
 
 .PHONY: claude-hooks
 claude-hooks:

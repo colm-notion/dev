@@ -8,7 +8,9 @@
       "Bash(/Users/clang/.claude/scripts/notify-waiting.sh:*)",
       "Bash(echo \"TMUX_PANE=$TMUX_PANE\" && tmux display-message -t \"$TMUX_PANE\" -p '#S' 2>/dev/null)",
       "Bash(terminal-notifier:*)",
-      "Bash(sleep 5:*)"
+      "Bash(sleep 5:*)",
+      "Read(//Users/clang/**)",
+      "Read(//Users/clang/.claude/**)"
     ]
   }
 }

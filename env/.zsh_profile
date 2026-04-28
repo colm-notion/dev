@@ -131,7 +131,6 @@ gwreset() {
   if [[ "$current_dir" =~ $HOME/worktrees/(ws-[0-9]+) ]]; then
     local workspace="${match[1]}"
     gws "$workspace"
-    gt sync && gt restack -q
   else
     echo "Not in a workspace directory (expected ~/worktrees/ws-N)"
     return 1
