@@ -48,7 +48,7 @@ NEOVIM_SOURCE=~/neovim
 $(NEOVIM_SOURCE):
 	@git clone https://github.com/neovim/neovim.git $(NEOVIM_SOURCE)
 
-nvim: $(PACKER) build-neovim-src neovim-packer-installs update-nvim git-ignore-config
+nvim: $(PACKER) build-neovim-src update-nvim neovim-packer-installs
 
 BREW_PACKAGES := ninja cmake gettext curl git tmux ripgrep lua rustup btop eza withgraphite/tap/graphite gh terminal-notifier
 
@@ -99,7 +99,7 @@ build-neovim-src-linux: install-apt
 		sudo make install; \
 	fi
 
-nvim-linux: $(PACKER) build-neovim-src-linux neovim-packer-installs update-nvim git-ignore-config
+nvim-linux: $(PACKER) build-neovim-src-linux update-nvim neovim-packer-installs
 
 .PHONY: claude-hooks
 claude-hooks:
