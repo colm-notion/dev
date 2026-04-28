@@ -82,11 +82,17 @@ install-apt:
 	@sudo apt-get update
 	@sudo apt-get install -y $(APT_PACKAGES)
 
-build-neovim-src-linux: $(NEOVIM_SOURCE) install-apt
-	@cd ~/neovim && \
-	git checkout v0.11.4 && \
-	make CMAKE_BUILD_TYPE=RelWithDebInfo && \
-	sudo make install;
+NVIM_VERSION := v0.11.4
+build-neovim-src-linux: install-apt
+	@if command -v nvim >/dev/null 2>&1 && nvim --version | head -1 | grep -q "$(NVIM_VERSION)"; then \
+		echo "nvim $(NVIM_VERSION) already installed, skipping build"; \
+	else \
+		$(MAKE) $(NEOVIM_SOURCE) && \
+		cd ~/neovim && \
+		git checkout $(NVIM_VERSION) && \
+		make CMAKE_BUILD_TYPE=RelWithDebInfo && \
+		sudo make install; \
+	fi
 
 nvim-linux: $(PACKER) build-neovim-src-linux neovim-packer-installs update-nvim git-ignore-config
 
