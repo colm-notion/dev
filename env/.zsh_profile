@@ -84,15 +84,45 @@ gws() {
   local raw=false
   local branch=""
   for arg in "$@"; do
-    if [[ "$arg" == "--raw" || "$arg" == "-r" ]]; then
-      raw=true
-    else
-      branch="$arg"
-    fi
+    case "$arg" in
+      --raw|-r)
+        raw=true
+        ;;
+      --help|-h)
+        cat <<'EOF'
+gws — switch to (or create) a git workspace branch using `gt`.
+
+Usage: gws [-r|--raw] <branch-name>
+
+Behavior:
+  - Checks out main, then checks out <branch-name> via `gt co`.
+  - If the branch does not exist, it is created with `gt create`.
+  - Unless -r/--raw is passed, the branch name is automatically
+    prefixed with `colm-lang--` (skipped if already prefixed).
+  - When run inside tmux, renames the current session to the branch
+    (prefixed with the workspace name if under ~/worktrees/ws-N).
+  - Runs `notion install` if node_modules is missing.
+
+Flags:
+  -r, --raw    Do not add the `colm-lang--` prefix; use <branch-name> as-is.
+  -h, --help   Show this help message.
+
+Examples:
+  gws my-feature              # checks out colm-lang--my-feature
+  gws -r main                 # checks out main without prefixing
+  gws colm-lang--my-feature   # already-prefixed name is left alone
+EOF
+        return 0
+        ;;
+      *)
+        branch="$arg"
+        ;;
+    esac
   done
 
   if [ -z "$branch" ]; then
     echo "Usage: gws [-r|--raw] <branch-name>"
+    echo "Run 'gws --help' for more details."
     return 1
   fi
   if $raw; then
