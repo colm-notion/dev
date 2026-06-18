@@ -50,7 +50,7 @@ $(NEOVIM_SOURCE):
 
 nvim: $(PACKER) build-neovim-src update-nvim neovim-packer-installs
 
-BREW_PACKAGES := ninja cmake gettext curl git tmux ripgrep lua rustup btop eza withgraphite/tap/graphite gh terminal-notifier
+BREW_PACKAGES := ninja cmake gettext curl git tmux ripgrep lua rustup btop eza withgraphite/tap/graphite gh terminal-notifier watch
 
 .PHONY: install
 install: install-rust install-brew
@@ -113,6 +113,21 @@ claude-hooks:
 		$(TARGET_DIR)/.claude/settings.json > $(TARGET_DIR)/.claude/settings.json.tmp \
 		&& mv $(TARGET_DIR)/.claude/settings.json.tmp $(TARGET_DIR)/.claude/settings.json
 	@echo "Claude hooks installed."
+
+.PHONY: codex-hooks
+codex-hooks:
+	@mkdir -p $(TARGET_DIR)/.codex/scripts
+	@cp $(DOTFILES)/.codex/scripts/notify-turn-complete.sh $(TARGET_DIR)/.codex/scripts/notify-turn-complete.sh
+	@chmod +x $(TARGET_DIR)/.codex/scripts/notify-turn-complete.sh
+	@SCRIPT="$$HOME/.codex/scripts/notify-turn-complete.sh"; \
+	if [ ! -f $(TARGET_DIR)/.codex/config.toml ]; then \
+		printf 'notify = ["%s"]\n\n[tui]\nnotifications = true\nnotification_condition = "unfocused"\n' "$$SCRIPT" \
+			> $(TARGET_DIR)/.codex/config.toml; \
+	elif ! grep -q '^notify' $(TARGET_DIR)/.codex/config.toml; then \
+		printf '\nnotify = ["%s"]\n' "$$SCRIPT" \
+			>> $(TARGET_DIR)/.codex/config.toml; \
+	fi
+	@echo "Codex hooks installed."
 
 neovim-packer-installs:
 	@nvim --headless -c 'autocmd User PackerComplete quitall' -c 'PackerClean'

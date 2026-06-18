@@ -235,4 +235,7 @@ gwa() {
 alias e="eza --group-directories-first --icons"
 alias el="eza -T -L 2 --icons --group-directories-first"
 
+alias tmux-uptime="tmux list-sessions -F '#{session_name}: created #{t/r:session_created}'"
+
 export PATH=$PATH:~/.cargo/bin
+export USE_NOTION_SNOWFLAKE_MCP=1
