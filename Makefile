@@ -26,6 +26,25 @@ $(DOTFILES_LIST):
 	mkdir -p $(dir $(TARGET_DIR)/$@)
 	ln -sfv $(DOTFILES)/$@ $(dir $(TARGET_DIR)/$@)
 
+# Symlinks nvim/tmux/zsh dotfiles into ~/.boxy/profile/dotfiles so Boxy syncs
+# them into the session user's home (the documented dotfiles channel). init.sh
+# runs as root and lands in /root, so it's the wrong place for user dotfiles.
+BOXY_DOTFILES_DIR = $$HOME/.boxy/profile/dotfiles
+BOXY_DOTFILES_LIST = \
+	.zshrc \
+	.zsh_profile \
+	.tmux.conf \
+	.config/tmux \
+	.config/nvim
+
+.PHONY: boxy-dotfiles
+boxy-dotfiles:
+	@for f in $(BOXY_DOTFILES_LIST); do \
+		dest="$(BOXY_DOTFILES_DIR)/$$f"; \
+		mkdir -p "$$(dirname "$$dest")"; \
+		ln -sfvn $(DOTFILES)/$$f "$$dest"; \
+	done
+
 update-nvim:
 	@git submodule update --init --recursive
 	@cd $(DOTFILES)/.config/nvim && git pull origin main
