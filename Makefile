@@ -76,7 +76,7 @@ $(NEOVIM_SOURCE):
 
 nvim: $(PACKER) build-neovim-src update-nvim neovim-packer-installs
 
-BREW_PACKAGES := ninja cmake gettext curl git tmux ripgrep lua rustup btop eza withgraphite/tap/graphite gh terminal-notifier watch
+BREW_PACKAGES := ninja cmake gettext curl git tmux ripgrep lua rustup btop eza withgraphite/tap/graphite gh terminal-notifier watch fzf
 
 .PHONY: install
 install: install-rust install-brew
