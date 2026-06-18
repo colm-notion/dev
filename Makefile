@@ -18,7 +18,14 @@ DOTFILES_LIST = \
 
 all: link nvim
 
-boxy: link nvim-linux
+# Runs ON the box, AS the notion user (see .boxy/profile/init.sh). Installs only —
+# configs come from the dotfiles channel (make boxy-dotfiles, run on the laptop).
+boxy: ensure-oh-my-zsh-boxy nvim-linux
+
+# Boxy-safe oh-my-zsh install: just clone the repo (no curl|sh, no chsh prompt).
+.PHONY: ensure-oh-my-zsh-boxy
+ensure-oh-my-zsh-boxy:
+	@[ -d ~/.oh-my-zsh ] || git clone --depth=1 https://github.com/ohmyzsh/ohmyzsh.git ~/.oh-my-zsh
 
 link: $(DOTFILES_LIST)
 
