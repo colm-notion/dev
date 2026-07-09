@@ -1,3 +1,5 @@
+export EDITOR="nvim"
+
 alias g="git"
 alias ga="git add"
 alias gaa="git add -A"
@@ -236,6 +238,19 @@ alias e="eza --group-directories-first --icons"
 alias el="eza -T -L 2 --icons --group-directories-first"
 
 alias tmux-uptime="tmux list-sessions -F '#{session_name}: created #{t/r:session_created}'"
+
+# Live progress on a markdown todo file's checkboxes, refreshed every 2s.
+#   task-watch ~/todos/pubsub-k8s-todos.md  ->  14/17 -> 3 to go
+task-watch() {
+  local file="${1:?usage: task-watch <path>}"
+  file="${file/#\~/$HOME}"
+  [[ -f "$file" ]] || { echo "task-watch: no such file: $file" >&2; return 1; }
+  watch -n 2 "
+    total=\$(grep -icE '\\[(x| )\\]' '$file')
+    done=\$(grep -icE '\\[x\\]' '$file')
+    echo \"\$done/\$total -> \$((total - done)) to go\"
+  "
+}
 
 export PATH=$PATH:~/.cargo/bin
 export USE_NOTION_SNOWFLAKE_MCP=1

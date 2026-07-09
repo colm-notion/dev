@@ -20,7 +20,7 @@ all: link nvim
 
 # Runs ON the box, AS the notion user (see .boxy/profile/init.sh). Installs only —
 # configs come from the dotfiles channel (make boxy-dotfiles, run on the laptop).
-boxy: ensure-oh-my-zsh-boxy nvim-linux
+boxy: ensure-oh-my-zsh-boxy nvim-linux mkdp-server
 
 # Boxy-safe oh-my-zsh install: just clone the repo (no curl|sh, no chsh prompt).
 .PHONY: ensure-oh-my-zsh-boxy
@@ -41,6 +41,8 @@ BOXY_DOTFILES_LIST = \
 	.zshrc \
 	.zsh_profile \
 	.tmux.conf \
+	.claude \
+	.codex \
 	.config/tmux \
 	.config/nvim
 
@@ -101,10 +103,31 @@ build-neovim-src: $(NEOVIM_SOURCE) $(BREW_PACKAGES)
 	make CMAKE_BUILD_TYPE=RelWithDebInfo && \
 	sudo make install;
 
-APT_PACKAGES := ninja-build gettext cmake curl build-essential git tmux ripgrep lua5.4 gh
+# NOTE: gh is intentionally NOT here — it isn't in Debian's default apt repos,
+# so `apt-get install gh` fails ("Unable to locate package gh") and aborts all of
+# `make boxy` before nvim is ever built. It's installed by `ensure-gh` below,
+# which adds GitHub's apt repo first.
+APT_PACKAGES := ninja-build gettext cmake curl build-essential git tmux ripgrep lua5.4
+
+# gh (GitHub CLI) needs GitHub's own apt repo on Debian. Idempotent: no-op if
+# gh is already on PATH.
+.PHONY: ensure-gh
+ensure-gh:
+	@if command -v gh >/dev/null 2>&1; then \
+		echo "gh already installed"; \
+	else \
+		echo "Adding GitHub CLI apt repo and installing gh..."; \
+		sudo mkdir -p -m 755 /etc/apt/keyrings; \
+		curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+			| sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null; \
+		sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg; \
+		echo "deb [arch=$$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+			| sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null; \
+		sudo apt-get update && sudo apt-get install -y gh; \
+	fi
 
 .PHONY: install-apt
-install-apt:
+install-apt: ensure-gh
 	@missing=$$(for p in $(APT_PACKAGES); do dpkg -s $$p >/dev/null 2>&1 || echo $$p; done); \
 	if [ -n "$$missing" ]; then \
 		echo "Installing missing apt packages: $$missing"; \
@@ -125,7 +148,34 @@ build-neovim-src-linux: install-apt
 		sudo make install; \
 	fi
 
-nvim-linux: $(PACKER) build-neovim-src-linux update-nvim neovim-packer-installs
+# NOTE: no `update-nvim` here (unlike the laptop `nvim` target). On a box the nvim
+# config arrives via the dotfiles channel (~/.config/nvim), not the git submodule,
+# and `update-nvim` would try to bump+commit the submodule — which aborts the build
+# when the repo pins a submodule commit that no longer exists on the remote.
+nvim-linux: $(PACKER) build-neovim-src-linux neovim-packer-installs
+
+# markdown-preview.nvim needs a server: either its prebuilt binary (app/bin) or
+# node deps (app/node_modules with tslib). The plugin's packer `run` hook calls
+# mkdp#util#install() asynchronously, but `neovim-packer-installs` quits headless
+# nvim on a fixed sleep before the download finishes — so the box ends up with an
+# empty app/bin AND no node_modules, and :MarkdownPreview crashes with
+# "Cannot find module 'tslib'". Run mkdp's own install.sh synchronously here to
+# fetch the prebuilt binary; fall back to node deps on arches with no binary.
+MKDP_APP = $$HOME/.local/share/nvim/site/pack/packer/start/markdown-preview.nvim/app
+.PHONY: mkdp-server
+mkdp-server:
+	@if [ ! -d $(MKDP_APP) ]; then \
+		echo "mkdp: plugin not installed, skipping"; \
+	else \
+		echo "mkdp: installing preview server..."; \
+		( cd $(MKDP_APP) && bash install.sh ) || true; \
+		if ls $(MKDP_APP)/bin/markdown-preview-* >/dev/null 2>&1; then \
+			echo "mkdp: prebuilt binary ready."; \
+		else \
+			echo "mkdp: no prebuilt binary for this arch; installing node deps..."; \
+			( cd $(MKDP_APP) && npm install --no-audit --no-fund ); \
+		fi; \
+	fi
 
 .PHONY: claude-hooks
 claude-hooks:
