@@ -5,7 +5,7 @@
 # local wrapper session "boxy-<name>" for each running box. The wrapper does NOT
 # ssh in immediately (that would open a connection to every box on every press);
 # it polls cheaply until you actually switch into it, then execs
-# `notion boxy attach <name>` (ssh + attach to the box's shared tmux).
+# `notion boxy ssh --attach <name>` (ssh + attach to the box's shared tmux).
 #
 # Usage (driven from .tmux.conf, prefix + S):
 #   boxy-switcher.sh sync          -> reconcile wrapper sessions, then caller runs choose-tree
@@ -41,7 +41,7 @@ __attach)
 		sleep 0.3
 	done
 	echo "Connecting to $box ..."
-	exec notion boxy attach "$box"
+	exec notion boxy ssh --attach "$box"
 	;;
 
 sync)

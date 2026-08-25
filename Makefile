@@ -103,41 +103,34 @@ build-neovim-src: $(NEOVIM_SOURCE) $(BREW_PACKAGES)
 	make CMAKE_BUILD_TYPE=RelWithDebInfo && \
 	sudo make install;
 
-# NOTE: gh is intentionally NOT here — it isn't in Debian's default apt repos,
-# so `apt-get install gh` fails ("Unable to locate package gh") and aborts all of
-# `make boxy` before nvim is ever built. It's installed by `ensure-gh` below,
-# which adds GitHub's apt repo first.
-APT_PACKAGES := ninja-build gettext cmake curl build-essential git tmux ripgrep lua5.4
+# Boxy images are WizOS (Alpine-based) as of 2026-08-20, so the box package
+# manager is apk, not apt-get. Debian names translated: build-essential ->
+# build-base, gettext -> gettext-dev, and ninja-build only ships /usr/bin/
+# ninja-build — neovim's Makefile looks for plain `ninja`, which comes from the
+# ninja-is-really-ninja shim. github-cli IS in Alpine's community repo, so gh
+# no longer needs the third-party-repo dance the Debian images required.
+# ripgrep, ninja-build and github-cli live in community: that repo must be
+# enabled in /etc/apk/repositories or `apk add` will fail to find them.
+APK_PACKAGES := ninja-build ninja-is-really-ninja gettext-dev cmake curl build-base \
+	git tmux ripgrep lua5.4 unzip github-cli
 
-# gh (GitHub CLI) needs GitHub's own apt repo on Debian. Idempotent: no-op if
-# gh is already on PATH.
-.PHONY: ensure-gh
-ensure-gh:
-	@if command -v gh >/dev/null 2>&1; then \
-		echo "gh already installed"; \
-	else \
-		echo "Adding GitHub CLI apt repo and installing gh..."; \
-		sudo mkdir -p -m 755 /etc/apt/keyrings; \
-		curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
-			| sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null; \
-		sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg; \
-		echo "deb [arch=$$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
-			| sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null; \
-		sudo apt-get update && sudo apt-get install -y gh; \
-	fi
+# `make boxy` runs as the unprivileged `notion` user, and hardened WizOS images
+# don't necessarily ship sudo — fall back to doas, or to nothing when already
+# root.
+SUDO := $(shell if [ "`id -u`" = 0 ]; then echo; elif command -v sudo >/dev/null 2>&1; then echo sudo; elif command -v doas >/dev/null 2>&1; then echo doas; fi)
 
-.PHONY: install-apt
-install-apt: ensure-gh
-	@missing=$$(for p in $(APT_PACKAGES); do dpkg -s $$p >/dev/null 2>&1 || echo $$p; done); \
+.PHONY: install-apk
+install-apk:
+	@missing=$$(for p in $(APK_PACKAGES); do [ -n "$$(apk info -e $$p 2>/dev/null)" ] || echo $$p; done); \
 	if [ -n "$$missing" ]; then \
-		echo "Installing missing apt packages: $$missing"; \
-		sudo apt-get update && sudo apt-get install -y $$missing; \
+		echo "Installing missing apk packages: $$missing"; \
+		$(SUDO) apk update && $(SUDO) apk add $$missing; \
 	else \
-		echo "all apt packages already installed"; \
+		echo "all apk packages already installed"; \
 	fi
 
 NVIM_VERSION := v0.11.4
-build-neovim-src-linux: install-apt
+build-neovim-src-linux: install-apk
 	@if command -v nvim >/dev/null 2>&1 && nvim --version | head -1 | grep -q "$(NVIM_VERSION)"; then \
 		echo "nvim $(NVIM_VERSION) already installed, skipping build"; \
 	else \
@@ -145,7 +138,7 @@ build-neovim-src-linux: install-apt
 		cd ~/neovim && \
 		git checkout $(NVIM_VERSION) && \
 		make CMAKE_BUILD_TYPE=RelWithDebInfo && \
-		sudo make install; \
+		$(SUDO) make install; \
 	fi
 
 # NOTE: no `update-nvim` here (unlike the laptop `nvim` target). On a box the nvim
