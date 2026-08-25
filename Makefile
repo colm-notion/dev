@@ -20,7 +20,7 @@ all: link nvim
 
 # Runs ON the box, AS the notion user (see .boxy/profile/init.sh). Installs only —
 # configs come from the dotfiles channel (make boxy-dotfiles, run on the laptop).
-boxy: ensure-oh-my-zsh-boxy nvim-linux mkdp-server
+boxy: ensure-oh-my-zsh-boxy install-apk-extras nvim-linux mkdp-server
 
 # Boxy-safe oh-my-zsh install: just clone the repo (no curl|sh, no chsh prompt).
 .PHONY: ensure-oh-my-zsh-boxy
@@ -104,47 +104,64 @@ build-neovim-src: $(NEOVIM_SOURCE) $(BREW_PACKAGES)
 	sudo make install;
 
 # Boxy images are WizOS (Alpine-based) as of 2026-08-20, so the box package
-# manager is apk, not apt-get. Debian names translated: build-essential ->
-# build-base, gettext -> gettext-dev, and ninja-build only ships /usr/bin/
-# ninja-build — neovim's Makefile looks for plain `ninja`, which comes from the
-# ninja-is-really-ninja shim. github-cli IS in Alpine's community repo, so gh
-# no longer needs the third-party-repo dance the Debian images required.
-# ripgrep, ninja-build and github-cli live in community: that repo must be
-# enabled in /etc/apk/repositories or `apk add` will fail to find them.
-APK_PACKAGES := ninja-build ninja-is-really-ninja gettext-dev cmake curl build-base \
-	git tmux ripgrep lua5.4 unzip github-cli
+# manager is apk, not apt-get.
+#
+# Build deps are neovim's own Alpine list from BUILD.md, verbatim:
+#   apk add build-base cmake coreutils curl gettext-tiny-dev git
+# Note gettext-TINY-dev (Alpine's split) and coreutils (busybox's are too thin).
+# Ninja is deliberately absent: BUILD.md calls it optional — cmake falls back to
+# the Unix Makefiles generator — and it isn't in the WizOS index anyway. Since
+# there's no ninja to parallelise the build for us, the nvim build below passes
+# -j explicitly, which BUILD.md tells you NOT to do when ninja is present.
+APK_BUILD_DEPS := build-base cmake coreutils curl gettext-tiny-dev git
+
+# Not needed to build nvim, just wanted on a box. Installed one-at-a-time and
+# best-effort: the WizOS index can't serve all of these, and a box without gh is
+# still a box worth having, whereas a hard failure here aborts `make boxy`
+# before nvim is ever built.
+APK_EXTRAS := tmux ripgrep lua5.4 github-cli
 
 # `apk update` exits with the NUMBER of unreachable repositories, so it must not
-# gate the install: the os.wiz.io repos are authenticated and 401 for an
-# unprivileged fetch, which made a plain `apk update && apk add` abort with
-# "Error 3" before apk add ever ran. Refresh best-effort, then let apk add fail
-# with a real per-package message if the cached index can't satisfy $missing.
+# gate an install: the os.wiz.io repos are authenticated and 401 for this box,
+# which made a plain `apk update && apk add` abort with "Error 3" before apk add
+# ever ran. Refresh best-effort and let apk add speak for itself.
 
 # `make boxy` runs as the unprivileged `notion` user, and hardened WizOS images
 # don't necessarily ship sudo — fall back to doas, or to nothing when already
 # root.
 SUDO := $(shell if [ "`id -u`" = 0 ]; then echo; elif command -v sudo >/dev/null 2>&1; then echo sudo; elif command -v doas >/dev/null 2>&1; then echo doas; fi)
 
-.PHONY: install-apk
-install-apk:
-	@missing=$$(for p in $(APK_PACKAGES); do [ -n "$$(apk info -e $$p 2>/dev/null)" ] || echo $$p; done); \
-	if [ -n "$$missing" ]; then \
-		echo "Installing missing apk packages: $$missing"; \
-		$(SUDO) apk update || echo "apk update: some repos unreachable, using cached index"; \
-		$(SUDO) apk add $$missing; \
-	else \
-		echo "all apk packages already installed"; \
-	fi
+# Strict: without these, the nvim build cannot proceed, so a failure here should
+# stop the line. Only invoked when a build is actually needed (see
+# build-neovim-src-linux) — an already-provisioned nvim shouldn't require cmake.
+.PHONY: install-apk-build-deps
+install-apk-build-deps:
+	@missing=$$(for p in $(APK_BUILD_DEPS); do [ -n "$$(apk info -e $$p 2>/dev/null)" ] || echo $$p; done); \
+	if [ -z "$$missing" ]; then echo "nvim build deps: all present"; exit 0; fi; \
+	echo "Installing nvim build deps: $$missing"; \
+	$(SUDO) apk update || echo "apk update: some repos unreachable, using cached index"; \
+	$(SUDO) apk add $$missing
+
+.PHONY: install-apk-extras
+install-apk-extras:
+	@missing=$$(for p in $(APK_EXTRAS); do [ -n "$$(apk info -e $$p 2>/dev/null)" ] || echo $$p; done); \
+	if [ -z "$$missing" ]; then echo "extras: all present"; exit 0; fi; \
+	echo "Installing extras (best-effort): $$missing"; \
+	$(SUDO) apk update >/dev/null 2>&1 || true; \
+	for p in $$missing; do \
+		$(SUDO) apk add $$p || echo "extras: $$p unavailable, skipping"; \
+	done
 
 NVIM_VERSION := v0.11.4
-build-neovim-src-linux: install-apk
+build-neovim-src-linux:
 	@if command -v nvim >/dev/null 2>&1 && nvim --version | head -1 | grep -q "$(NVIM_VERSION)"; then \
 		echo "nvim $(NVIM_VERSION) already installed, skipping build"; \
 	else \
+		$(MAKE) install-apk-build-deps && \
 		$(MAKE) $(NEOVIM_SOURCE) && \
 		cd ~/neovim && \
 		git checkout $(NVIM_VERSION) && \
-		make CMAKE_BUILD_TYPE=RelWithDebInfo && \
+		make -j$$(nproc) CMAKE_BUILD_TYPE=RelWithDebInfo && \
 		$(SUDO) make install; \
 	fi
 
