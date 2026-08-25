@@ -20,7 +20,7 @@ all: link nvim
 
 # Runs ON the box, AS the notion user (see .boxy/profile/init.sh). Installs only —
 # configs come from the dotfiles channel (make boxy-dotfiles, run on the laptop).
-boxy: ensure-oh-my-zsh-boxy install-apk-extras nvim-linux mkdp-server
+boxy: ensure-oh-my-zsh-boxy nvim-linux mkdp-server
 
 # Boxy-safe oh-my-zsh install: just clone the repo (no curl|sh, no chsh prompt).
 .PHONY: ensure-oh-my-zsh-boxy
@@ -103,138 +103,64 @@ build-neovim-src: $(NEOVIM_SOURCE) $(BREW_PACKAGES)
 	make CMAKE_BUILD_TYPE=RelWithDebInfo && \
 	sudo make install;
 
-# Boxy images are WizOS (Alpine-based) as of 2026-08-20, so the box package
-# manager is apk, not apt-get.
+# Boxy images moved to WizOS on 2026-08-20 (notion-next
+# docker/remote-agent/Dockerfile). Three facts from that image define what this
+# has to do:
 #
-# Build deps are neovim's own Alpine list from BUILD.md, verbatim:
-#   apk add build-base cmake coreutils curl gettext-tiny-dev git
-# Note gettext-TINY-dev (Alpine's split) and coreutils (busybox's are too thin).
-# Ninja is deliberately absent: BUILD.md calls it optional — cmake falls back to
-# the Unix Makefiles generator — and it isn't in the WizOS index anyway. Since
-# there's no ninja to parallelise the build for us, the nvim build below passes
-# -j explicitly, which BUILD.md tells you NOT to do when ninja is present.
-APK_BUILD_DEPS := build-base cmake coreutils curl git
-
-# gettext: BUILD.md's Alpine line names gettext-tiny-dev, but the WizOS index
-# serves neither variant and these boxes already ship the full gettext-dev — so
-# asking for the tiny one turns a satisfied dep into a hard failure. Accept
-# whichever is present; only try to install if neither is.
-APK_GETTEXT_ALT := gettext-dev gettext-tiny-dev
-
-# Not needed to build nvim, just wanted on a box. Installed one-at-a-time and
-# best-effort: the WizOS index can't serve all of these, and a box without gh is
-# still a box worth having, whereas a hard failure here aborts `make boxy`
-# before nvim is ever built.
-# pkg:binary — the binary is checked first, because `apk info -e` only knows
-# about apk-installed packages and these images ship some tools outside apk
-# (node is in /usr/local/bin that way). Without this, apk is asked for packages
-# whose binaries are already on PATH.
-APK_EXTRAS := tmux:tmux ripgrep:rg lua5.4:lua5.4 github-cli:gh
-
-# `apk update` exits with the NUMBER of unreachable repositories, so it must not
-# gate an install: the os.wiz.io repos are authenticated and 401 for this box,
-# which made a plain `apk update && apk add` abort with "Error 3" before apk add
-# ever ran. Refresh best-effort and let apk add speak for itself.
-
-# `make boxy` runs as the unprivileged `notion` user, and hardened WizOS images
-# don't necessarily ship sudo — fall back to doas, or to nothing when already
-# root.
-SUDO := $(shell if [ "`id -u`" = 0 ]; then echo; elif command -v sudo >/dev/null 2>&1; then echo sudo; elif command -v doas >/dev/null 2>&1; then echo doas; fi)
-
-# Best-effort: on a box whose apk repos 401, none of this may be installable.
-# The real gates are the cc and cmake checks in build-neovim-src-linux, which
-# don't care how a tool arrived. Only invoked when a build is actually needed —
-# an already-provisioned nvim shouldn't require cmake at all.
-.PHONY: install-apk-build-deps
-install-apk-build-deps:
-	@missing=$$(for p in $(APK_BUILD_DEPS); do [ -n "$$(apk info -e $$p 2>/dev/null)" ] || echo $$p; done); \
-	have_gettext=; \
-	for p in $(APK_GETTEXT_ALT); do \
-		[ -n "$$(apk info -e $$p 2>/dev/null)" ] && have_gettext=$$p; \
-	done; \
-	if [ -n "$$have_gettext" ]; then echo "gettext: $$have_gettext present"; else missing="$$missing gettext-dev"; fi; \
-	missing=$$(echo $$missing); \
-	if [ -z "$$missing" ]; then echo "nvim build deps: all present"; exit 0; fi; \
-	echo "Installing nvim build deps: $$missing"; \
-	$(SUDO) apk update || echo "apk update: some repos unreachable, using cached index"; \
-	$(SUDO) apk add $$missing || echo "apk could not satisfy: $$missing (continuing — ensure-cmake covers cmake)"
-
-.PHONY: install-apk-extras
-install-apk-extras:
-	@missing=; \
-	for e in $(APK_EXTRAS); do \
-		pkg=$${e%%:*}; bin=$${e##*:}; \
-		command -v $$bin >/dev/null 2>&1 && continue; \
-		[ -n "$$(apk info -e $$pkg 2>/dev/null)" ] && continue; \
-		missing="$$missing $$pkg"; \
-	done; \
-	missing=$$(echo $$missing); \
-	if [ -z "$$missing" ]; then echo "extras: all present"; exit 0; fi; \
-	echo "Installing extras (best-effort): $$missing"; \
-	$(SUDO) apk update >/dev/null 2>&1 || true; \
-	for p in $$missing; do \
-		$(SUDO) apk add $$p || echo "extras: $$p unavailable, skipping"; \
-	done
-
-# cmake is the one non-negotiable build dep, and it's absent from the WizOS
-# cached index while os.wiz.io 401s. cmake can build itself with nothing but a
-# C++ toolchain (which these images do ship), so bootstrap it rather than let
-# `make boxy` dead-end on a repo-auth problem outside this repo's control.
+#   1. apk on a RUNNING box always 401s. The WizOS repo credentials are
+#      build-time-only secrets (WIZOS_CLIENT_ID/SECRET fed to `apk-auth` under
+#      --mount=type=secret), so they don't exist at runtime. `apk add` is not a
+#      tool this Makefile has, for anything.
+#   2. wizos-base is "busybox + glibc only" — NOT musl, despite apk. So
+#      neovim's official prebuilt Linux tarball runs here natively.
+#   3. The image provisions tools with mise, not apk: tmux, gh and ripgrep all
+#      come from docker/remote-agent/mise.toml, with the shim dir force-added to
+#      PATH in /etc/profile.d/mise.sh (because `bash -lc`, which is how
+#      .boxy/profile/init.sh runs, resets PATH and would drop it).
 #
-# Pinned to the 3.x series on purpose: cmake 4 dropped compatibility with the
-# pre-3.5 minimums that neovim's bundled deps (luajit, libuv, et al) still
-# declare, so a 4.x bootstrap builds fine and then fails to configure neovim.
-# Installed under ~/.local so it needs no root and won't shadow or collide with
-# an apk-provided cmake if the repos ever come back.
-CMAKE_VERSION := 3.31.7
-LOCAL_PREFIX := $$HOME/.local
-CMAKE_SRC := $$HOME/src/cmake-$(CMAKE_VERSION)
-
-.PHONY: ensure-cmake
-ensure-cmake:
-	@if command -v cmake >/dev/null 2>&1; then \
-		echo "cmake: $$(cmake --version | head -1) already available"; \
-	elif [ -x $(LOCAL_PREFIX)/bin/cmake ]; then \
-		echo "cmake: $(LOCAL_PREFIX)/bin/cmake present (not on PATH — the nvim build adds it)"; \
-	else \
-		echo "cmake: not installable via apk, bootstrapping $(CMAKE_VERSION) from source (this takes a while)..."; \
-		command -v c++ >/dev/null 2>&1 || command -v g++ >/dev/null 2>&1 || { \
-			echo "cmake: no C++ compiler — install build-base first (apk add build-base)"; \
-			exit 1; \
-		}; \
-		mkdir -p $$HOME/src && \
-		if [ ! -d $(CMAKE_SRC) ]; then \
-			curl -fsSL https://github.com/Kitware/CMake/releases/download/v$(CMAKE_VERSION)/cmake-$(CMAKE_VERSION).tar.gz \
-				| tar xz -C $$HOME/src; \
-		fi && \
-		cd $(CMAKE_SRC) && \
-		./bootstrap --prefix=$(LOCAL_PREFIX) --parallel=$$(nproc) -- -DCMAKE_USE_OPENSSL=OFF && \
-		make -j$$(nproc) && \
-		make install && \
-		echo "cmake: bootstrapped to $(LOCAL_PREFIX)/bin/cmake"; \
-	fi
-
+# So nvim is installed the same way the image installs everything else — via
+# mise, from the prebuilt release. No cmake, no toolchain, no source build:
+# cmake isn't in packages-apk.list and can't be added, which is what made the
+# old apt-era source build unportable to these images.
 NVIM_VERSION := v0.11.4
-build-neovim-src-linux:
+MISE_NVIM_VERSION := 0.11.4
+
+# Fallback asset if mise is somehow absent. glibc, hence usable here.
+NVIM_TARBALL_BASE := https://github.com/neovim/neovim/releases/download/$(NVIM_VERSION)
+
+# `mise use -g` edits /home/notion/.config/mise/config.toml — the image's own
+# mise config (it carries the tmux/gh/ripgrep pins). mise edits TOML in place so
+# those survive, and a rebuilt box regenerates the file and re-runs this anyway.
+.PHONY: nvim-boxy
+nvim-boxy:
 	@if command -v nvim >/dev/null 2>&1 && nvim --version | head -1 | grep -q "$(NVIM_VERSION)"; then \
-		echo "nvim $(NVIM_VERSION) already installed, skipping build"; \
+		echo "nvim $(NVIM_VERSION) already installed"; \
+		exit 0; \
+	fi; \
+	mise_bin="$$(command -v mise 2>/dev/null || true)"; \
+	if [ -z "$$mise_bin" ] && [ -x "$$HOME/.local/bin/mise" ]; then \
+		mise_bin="$$HOME/.local/bin/mise"; \
+	fi; \
+	if [ -n "$$mise_bin" ]; then \
+		echo "nvim: installing $(MISE_NVIM_VERSION) via mise"; \
+		"$$mise_bin" use -g neovim@$(MISE_NVIM_VERSION); \
 	else \
-		$(MAKE) install-apk-build-deps && \
-		$(MAKE) ensure-cmake && \
-		{ command -v cc >/dev/null 2>&1 || command -v gcc >/dev/null 2>&1 || { \
-			echo "no C compiler on PATH — cannot build nvim"; exit 1; }; } && \
-		$(MAKE) $(NEOVIM_SOURCE) && \
-		cd ~/neovim && \
-		git checkout $(NVIM_VERSION) && \
-		PATH="$(LOCAL_PREFIX)/bin:$$PATH" make -j$$(nproc) CMAKE_BUILD_TYPE=RelWithDebInfo && \
-		$(SUDO) make install; \
+		echo "nvim: mise not found, falling back to the prebuilt tarball"; \
+		case "$$(uname -m)" in \
+			x86_64) asset=nvim-linux-x86_64.tar.gz ;; \
+			aarch64|arm64) asset=nvim-linux-arm64.tar.gz ;; \
+			*) echo "nvim: no prebuilt asset for $$(uname -m)"; exit 1 ;; \
+		esac; \
+		mkdir -p "$$HOME/.local" && \
+		curl -fsSL $(NVIM_TARBALL_BASE)/$$asset \
+			| tar xz -C "$$HOME/.local" --strip-components=1; \
 	fi
 
 # NOTE: no `update-nvim` here (unlike the laptop `nvim` target). On a box the nvim
 # config arrives via the dotfiles channel (~/.config/nvim), not the git submodule,
 # and `update-nvim` would try to bump+commit the submodule — which aborts the build
 # when the repo pins a submodule commit that no longer exists on the remote.
-nvim-linux: $(PACKER) build-neovim-src-linux neovim-packer-installs
+nvim-linux: $(PACKER) nvim-boxy neovim-packer-installs
 
 # markdown-preview.nvim needs a server: either its prebuilt binary (app/bin) or
 # node deps (app/node_modules with tslib). The plugin's packer `run` hook calls
@@ -287,6 +213,9 @@ codex-hooks:
 	fi
 	@echo "Codex hooks installed."
 
+# PATH: nvim arrives either as a mise shim or unpacked into ~/.local/bin, and
+# neither is guaranteed on PATH in the same make run that installed it.
+neovim-packer-installs: export PATH := $(HOME)/.local/share/mise/shims:$(HOME)/.local/bin:$(PATH)
 neovim-packer-installs:
 	@nvim --headless -c 'autocmd User PackerComplete quitall' -c 'PackerClean'
 	@nvim --headless -c 'autocmd User PackerComplete quitall' -c 'PackerSync'
