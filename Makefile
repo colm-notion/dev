@@ -114,6 +114,12 @@ build-neovim-src: $(NEOVIM_SOURCE) $(BREW_PACKAGES)
 APK_PACKAGES := ninja-build ninja-is-really-ninja gettext-dev cmake curl build-base \
 	git tmux ripgrep lua5.4 unzip github-cli
 
+# `apk update` exits with the NUMBER of unreachable repositories, so it must not
+# gate the install: the os.wiz.io repos are authenticated and 401 for an
+# unprivileged fetch, which made a plain `apk update && apk add` abort with
+# "Error 3" before apk add ever ran. Refresh best-effort, then let apk add fail
+# with a real per-package message if the cached index can't satisfy $missing.
+
 # `make boxy` runs as the unprivileged `notion` user, and hardened WizOS images
 # don't necessarily ship sudo — fall back to doas, or to nothing when already
 # root.
@@ -124,7 +130,8 @@ install-apk:
 	@missing=$$(for p in $(APK_PACKAGES); do [ -n "$$(apk info -e $$p 2>/dev/null)" ] || echo $$p; done); \
 	if [ -n "$$missing" ]; then \
 		echo "Installing missing apk packages: $$missing"; \
-		$(SUDO) apk update && $(SUDO) apk add $$missing; \
+		$(SUDO) apk update || echo "apk update: some repos unreachable, using cached index"; \
+		$(SUDO) apk add $$missing; \
 	else \
 		echo "all apk packages already installed"; \
 	fi
